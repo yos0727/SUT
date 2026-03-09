@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Calendar</title>
+<style>
+body{font-family:Arial,sans-serif;}
+.header{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 20px;
+    position: relative;
+}
+.header h2{ position: relative; top: 2px; margin: 0 20px; }
+.header a.arrow{ position: relative; font-size: 20px; text-decoration: none; color: black; font-weight: bold; }
+.header a.prev{ left: 0; }
+.header a.next{ right: 0; }
+.header a.add-event{ position: absolute; right: 5%; text-decoration: none; font-weight: bold; color: black; }
+
+.calendar{ display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; max-width: 100%; overflow-x: auto; }
+.day{ border:1px solid #ccc; min-height:120px; padding:5px; }
+.date{ font-weight:bold; margin-bottom:5px; }
+.event{ font-size:12px; padding:2px; margin-top:2px; border-radius:4px; cursor:pointer; text-align:left; word-break: break-word; }
+
+/* Modal */
+.modal{ position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); display:none; justify-content:center; align-items:center; }
+.modal-content{ background:white; padding:20px; border-radius:8px; width:300px; display:flex; flex-direction:column; gap:5px; }
+.modal-content h3{ margin:0; }
+.modal-content a.delete-link{ color:red; text-decoration:none; font-weight:bold; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <a href="/?year={{pre_year}}&month={{pre_month}}" class="arrow prev">◀</a>
+    <h2>{{year}} / {{month}}</h2>
+    <a href="/?year={{next_year}}&month={{next_month}}" class="arrow next">▶</a>
+    <a href="/add_event" class="add-event">Add Event</a>
+</div>
+
+<div class="calendar">
+{% for week in cal %}
+    {% for day in week %}
+    <div class="day">
+        {% if day != 0 %}
+            <div class="date">{{day}}</div>
+            {% set date = "%04d-%02d-%02d"|format(year, month, day) %}
+            {% set day_events = get_events(all_events, date) %}
+            {% for e in day_events %}
+            <div class="event" style="background:{{e.color}}" onclick="editEvent({{e.id}})">
+                {{e.title}}
+            </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+    {% endfor %}
+{% endfor %}
+</div>
+
+<!-- Edit Event Modal -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3>Edit Event</h3>
+            <a href="javascript:void(0);" class="delete-link" onclick="deleteEvent()">Delete</a>
+        </div>
+        <input type="hidden" id="editId">
+        <label>Title</label>
+        <input id="editTitle" type="text">
+        <label>Start</label>
+        <input id="editStart" type="date">
+        <label>End</label>
+        <input id="editEnd" type="date">
+        <label>Time</label>
+        <input id="editTime" type="time">
+        <label>Description</label>
+        <textarea id="editDesc"></textarea>
+        <label>Color</label>
+        <input id="editColor" type="color">
+        <br>
+        <button onclick="saveEvent()">Save</button>
+        <button onclick="closeModal()">Cancel</button>
+    </div>
+</div>
+
+<script>
+const events = {{all_events|tojson}};
+
+// 打開 modal 編輯
+function editEvent(id){
+    let e = events.find(ev => ev.id === id);
+    document.getElementById("editId").value = id;
+    document.getElementById("editTitle").value = e.title;
+    document.getElementById("editStart").value = e.start;
+    document.getElementById("editEnd").value = e.end;
+    document.getElementById("editTime").value = e.time;
+    document.getElementById("editDesc").value = e.desc;
+    document.getElementById("editColor").value = e.color;
+    document.getElementById("editModal").style.display = "flex";
+}
+
+// 關閉 modal
+function closeModal(){
+    document.getElementById("editModal").style.display = "none";
+}
+
+// 儲存修改
+function saveEvent(){
+    let data = new URLSearchParams({
+        id: document.getElementById("editId").value,
+        title: document.getElementById("editTitle").value,
+        start: document.getElementById("editStart").value,
+        end: document.getElementById("editEnd").value,
+        time: document.getElementById("editTime").value,
+        desc: document.getElementById("editDesc").value,
+        color: document.getElementById("editColor").value
+    });
+    fetch("/edit_event", { method:"POST", headers: {"Content-Type":"application/x-www-form-urlencoded"}, body:data })
+    .then(()=>location.reload());
+}
+
+// 刪除事件
+function deleteEvent(){
+    let id = document.getElementById("editId").value;
+    fetch("/delete_event", { method:"POST", headers: {"Content-Type":"application/x-www-form-urlencoded"}, body: new URLSearchParams({id:id}) })
+    .then(()=>{ closeModal(); location.reload(); });
+}
+</script>
+
+</body>
+</html>
