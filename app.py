@@ -73,7 +73,7 @@ def add_event():
 
 @app.route("/edit_event", methods=["POST"])
 def edit_event():
-    event_id = int(request.form["id"])  # 用前端傳的 id
+    event_id = int(request.form["id"])
     event = Event.query.get(event_id)
     if event:
         event.title = request.form["title"]

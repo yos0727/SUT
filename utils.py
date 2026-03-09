@@ -10,7 +10,6 @@ def get_day_events(events, date_str):
             day_events.append(e)
     return day_events
 
-# transform Event object to dict for JSON
 def serialize_event(e):
     return {
         "id": e.id,
