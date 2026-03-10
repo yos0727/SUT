@@ -18,5 +18,8 @@ def serialize_event(e):
         "end": e.end,
         "time": e.time,
         "desc": e.desc,
-        "color": e.color
+        "color": e.color,
+        # 新增的欄位
+        "is_all_day": e.is_all_day,
+        "recurrence": e.recurrence
     }

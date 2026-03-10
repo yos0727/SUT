@@ -1,126 +1,485 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta charset="UTF-8">
 <title>Calendar</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-body{font-family:Arial,sans-serif;}
-.header{
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-bottom: 20px;
-    position: relative;
-}
-.header h2{ position: relative; top: 2px; margin: 0 20px; }
-.header a.arrow{ position: relative; font-size: 20px; text-decoration: none; color: black; font-weight: bold; }
-.header a.prev{ left: 0; }
-.header a.next{ right: 0; }
-.header a.add-event{ position: absolute; right: 5%; text-decoration: none; font-weight: bold; color: black; }
+    /* --- 全局變數與基礎設定 --- */
+    :root {
+        --primary: #4f46e5;       --primary-hover: #4338ca;
+        --bg-body: #f3f4f6;       --bg-card: #ffffff;
+        --border: #e5e7eb;        --text-main: #111827;
+        --text-muted: #6b7280;    --danger: #dc2626;
+    }
+    body { font-family: 'Inter', sans-serif; background-color: var(--bg-body); color: var(--text-main); margin: 0; padding: 30px 20px; }
+    
+    /* --- 主容器 --- */
+    .app-container { max-width: 1200px; margin: 0 auto; background: var(--bg-card); border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); padding: 24px; }
+    
+    /* --- 頂部 Header --- */
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 15px; }
+    
+    /* 切換視圖的分段控制器 */
+    .view-toggles { display: flex; background: #f3f4f6; padding: 4px; border-radius: 10px; }
+    .view-toggles button { background: transparent; border: none; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
+    .view-toggles button.active, .view-toggles button:hover { background: white; color: var(--text-main); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    
+    /* 工具列按鈕 (匯出/匯入/登出) */
+    .tools button, .logout-btn { background: white; border: 1px solid var(--border); padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; color: var(--text-main); text-decoration: none; display: inline-block; margin-left: 8px; }
+    .tools button:hover, .logout-btn:hover { background: #f9fafb; border-color: #d1d5db; }
+    .logout-btn { color: var(--danger); border-color: #fecaca; background: #fef2f2; }
+    .logout-btn:hover { background: #fee2e2; }
 
-.calendar{ display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; max-width: 100%; overflow-x: auto; }
-.day{ border:1px solid #ccc; min-height:120px; padding:5px; }
-.date{ font-weight:bold; margin-bottom:5px; }
-.event{ font-size:12px; padding:2px; margin-top:2px; border-radius:4px; cursor:pointer; text-align:left; word-break: break-word; }
+    /* 月份切換導航 */
+    .controls { display: flex; align-items: center; gap: 15px; }
+    .controls button { background: white; border: 1px solid var(--border); width: 36px; height: 36px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.2s; color: var(--text-muted); }
+    .controls button:hover { background: #f3f4f6; color: var(--text-main); }
+    .controls h2 { margin: 0; min-width: 180px; text-align: center; font-size: 22px; font-weight: 600; }
 
+    /* --- 日曆網格系統 --- */
+    .calendar-wrapper { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    
+    /* 星期標頭 */
+    .week-header { display: grid; grid-template-columns: repeat(7, 1fr); background: #f9fafb; border-bottom: 1px solid var(--border); }
+    .week-header div { padding: 12px 0; text-align: center; font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
 
-.modal{ position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); display:none; justify-content:center; align-items:center; }
-.modal-content{ background:white; padding:20px; border-radius:8px; width:300px; display:flex; flex-direction:column; gap:5px; }
-.modal-content h3{ margin:0; }
-.modal-content a.delete-link{ color:red; text-decoration:none; font-weight:bold; cursor:pointer; }
+    .calendar-grid { display: grid; background: var(--border); gap: 1px; } /* 利用背景色當作邊框 */
+    .grid-month, .grid-week { grid-template-columns: repeat(7, 1fr); }
+    .grid-day { grid-template-columns: 1fr; }
+
+    .day-cell { min-height: 130px; padding: 8px; cursor: pointer; background: white; transition: background-color 0.2s; }
+    .day-cell:hover { background-color: #f9fafb; }
+    .day-cell.other-month { background-color: #fafafa; }
+    .day-cell.other-month .date-label { color: #d1d5db; }
+    .day-cell.drag-over { background-color: #eef2ff; }
+
+    .date-label { font-weight: 500; margin-bottom: 8px; font-size: 14px; pointer-events: none; text-align: right; padding-right: 4px; color: var(--text-main); }
+    
+    /* 標記今天 */
+    .date-label.today { background: var(--primary); color: white; display: inline-block; width: 24px; height: 24px; text-align: center; line-height: 24px; border-radius: 50%; float: right; margin-top: -4px; margin-right: -4px; }
+
+    /* --- 事件標籤與拖曳 --- */
+    .event { font-size: 12px; font-weight: 500; padding: 4px 8px; margin-bottom: 4px; border-radius: 6px; cursor: grab; color: #111827; transition: all 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .event:hover { filter: brightness(0.95); }
+    .event:active { cursor: grabbing; }
+    .event.dragging { opacity: 0.5; transform: scale(0.98); }
+
+    .event.time-specific { background: transparent !important; display: flex; align-items: center; padding: 2px 4px; }
+    .event.time-specific:hover { background: #f3f4f6 !important; }
+    .event-dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; flex-shrink: 0; }
+    .event-time { font-weight: 600; margin-right: 6px; opacity: 0.7; }
+
+    /* --- Modal (毛玻璃與現代化表單) --- */
+    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(17, 24, 39, 0.4); backdrop-filter: blur(4px); display: none; justify-content: center; align-items: center; z-index: 50; }
+    .modal-content { background: white; padding: 24px; border-radius: 16px; width: 100%; max-width: 380px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); animation: slideUp 0.3s ease-out; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .modal-header h3 { margin: 0; font-size: 20px; font-weight: 600; }
+    .modal-header a { color: var(--danger); text-decoration: none; font-size: 14px; font-weight: 500; padding: 6px 10px; border-radius: 6px; }
+    .modal-header a:hover { background: #fef2f2; }
+
+    .modal-body label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; margin-top: 12px; }
+    .modal-body input[type="text"], .modal-body input[type="date"], .modal-body input[type="time"], .modal-body select, .modal-body textarea { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 14px; transition: 0.2s; }
+    .modal-body input:focus, .modal-body select:focus, .modal-body textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+    .modal-body textarea { resize: vertical; min-height: 60px; }
+    .modal-body input[type="color"] { padding: 2px; height: 38px; cursor: pointer; }
+
+    .checkbox-group { display: flex; align-items: center; gap: 8px; margin-top: 12px; background: #f9fafb; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); }
+    .checkbox-group label { margin: 0; color: var(--text-main); font-size: 14px; cursor: pointer; }
+    .checkbox-group input { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary); }
+
+    .modal-footer { margin-top: 24px; display: flex; gap: 12px; }
+    .btn-primary { flex: 1; background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: 500; cursor: pointer; transition: 0.2s; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary { flex: 1; background: white; color: var(--text-main); border: 1px solid var(--border); padding: 12px; border-radius: 8px; font-weight: 500; cursor: pointer; transition: 0.2s; }
+    .btn-secondary:hover { background: #f3f4f6; }
 </style>
 </head>
 <body>
 
-<div class="header">
-    <a href="/?year={{pre_year}}&month={{pre_month}}" class="arrow prev">◀</a>
-    <h2>{{year}} / {{month}}</h2>
-    <a href="/?year={{next_year}}&month={{next_month}}" class="arrow next">▶</a>
-    <a href="/add_event" class="add-event">Add Event</a>
-</div>
-
-<div class="calendar">
-{% for week in cal %}
-    {% for day in week %}
-    <div class="day">
-        {% if day != 0 %}
-            <div class="date">{{day}}</div>
-            {% set date = "%04d-%02d-%02d"|format(year, month, day) %}
-            {% set day_events = get_events(all_events, date) %}
-            {% for e in day_events %}
-            <div class="event" style="background:{{e.color}}" onclick="editEvent({{e.id}})">
-                {{e.title}}
-            </div>
-            {% endfor %}
-        {% endif %}
-    </div>
-    {% endfor %}
-{% endfor %}
-</div>
-
-<div id="editModal" class="modal">
-    <div class="modal-content">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3>Edit Event</h3>
-            <a href="javascript:void(0);" class="delete-link" onclick="deleteEvent()">Delete</a>
+<div class="app-container">
+    <div class="header">
+        <div class="view-toggles" id="view-toggles">
+            <button class="active" onclick="changeView('month', this)">Month</button>
+            <button onclick="changeView('week', this)">Week</button>
+            <button onclick="changeView('day', this)">Day</button>
         </div>
-        <input type="hidden" id="editId">
-        <label>Title</label>
-        <input id="editTitle" type="text">
-        <label>Start</label>
-        <input id="editStart" type="date">
-        <label>End</label>
-        <input id="editEnd" type="date">
-        <label>Time</label>
-        <input id="editTime" type="time">
-        <label>Description</label>
-        <textarea id="editDesc"></textarea>
-        <label>Color</label>
-        <input id="editColor" type="color">
-        <br>
-        <button onclick="saveEvent()">Save</button>
-        <button onclick="closeModal()">Cancel</button>
+        
+        <div class="controls">
+            <button onclick="navigate(-1)">&#10094;</button>
+            <h2 id="current-date-display"></h2>
+            <button onclick="navigate(1)">&#10095;</button>
+        </div>
+        
+        <div class="tools">
+            <button onclick="window.location.href='/api/events/export'">↓ Export</button>
+            <input type="file" id="ical-upload" accept=".ics" style="display:none" onchange="importICal(event)">
+            <button onclick="document.getElementById('ical-upload').click()">↑ Import</button>
+            <a href="/logout" class="logout-btn">Logout</a>
+        </div>
+    </div>
+
+    <div class="calendar-wrapper">
+        <div class="week-header">
+            <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+        </div>
+        <div id="calendar-container" class="calendar-grid grid-month"></div>
+    </div>
+</div>
+
+<div id="eventModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">Event</h3>
+            <a href="javascript:void(0);" id="deleteBtn" onclick="deleteEvent()" style="display:none;">Delete</a>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="eventId">
+            
+            <label>Title</label>
+            <input id="editTitle" type="text" placeholder="Add title..." required>
+            
+            <div style="display: flex; gap: 10px;">
+                <div style="flex: 1;">
+                    <label>Start</label>
+                    <input id="editStart" type="date" required>
+                </div>
+                <div style="flex: 1;">
+                    <label>End</label>
+                    <input id="editEnd" type="date" required>
+                </div>
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" id="editIsAllDay" onchange="toggleTimeInput()">
+                <label for="editIsAllDay">All Day Event</label>
+            </div>
+            
+            <div id="timeWrapper">
+                <label>Time</label>
+                <input id="editTime" type="time">
+            </div>
+            
+            <label>Repeat</label>
+            <select id="editRecurrence">
+                <option value="">Do not repeat</option>
+                <option value="FREQ=DAILY">Daily</option>
+                <option value="FREQ=WEEKLY">Weekly</option>
+                <option value="FREQ=MONTHLY">Monthly</option>
+                <option value="FREQ=YEARLY">Yearly</option>
+            </select>
+            
+            <label>Description</label>
+            <textarea id="editDesc" placeholder="Add description..."></textarea>
+            
+            <label>Event Color</label>
+            <input id="editColor" type="color" value="#c7d2fe">
+        </div>
+        
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn-primary" onclick="saveEvent()">Save</button>
+        </div>
     </div>
 </div>
 
 <script>
-const events = {{all_events|tojson}};
+// --- 狀態管理 ---
+let currentDate = new Date();
+let currentView = 'month'; 
+let eventsData = [];
+
+document.addEventListener("DOMContentLoaded", () => { loadEvents(); });
+
+async function loadEvents() {
+    const res = await fetch('/api/events/');
+    eventsData = await res.json();
+    renderCalendar();
+}
+
+function changeView(view, btnElement) {
+    currentView = view;
+    // 更新按鈕樣式
+    document.querySelectorAll('.view-toggles button').forEach(b => b.classList.remove('active'));
+    if(btnElement) btnElement.classList.add('active');
+    renderCalendar();
+}
+
+function navigate(direction) {
+    if (currentView === 'month') { currentDate.setMonth(currentDate.getMonth() + direction); } 
+    else if (currentView === 'week') { currentDate.setDate(currentDate.getDate() + (direction * 7)); } 
+    else if (currentView === 'day') { currentDate.setDate(currentDate.getDate() + direction); }
+    renderCalendar();
+}
+
+// 格式化日期為 YYYY-MM-DD (處理本地時區問題)
+function getLocalYMD(dateObj) {
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function renderCalendar() {
+    const container = document.getElementById("calendar-container");
+    container.innerHTML = ""; 
+    container.className = `calendar-grid grid-${currentView}`; 
+
+    let datesToRender = [];
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+
+    // 判斷今天的字串
+    const todayStr = getLocalYMD(new Date());
+
+    if (currentView === 'month') {
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        document.getElementById("current-date-display").innerText = `${monthNames[month]} ${year}`;
+        
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        
+        for (let i = firstDay; i > 0; i--) datesToRender.push(new Date(year, month, 1 - i));
+        for (let i = 1; i <= daysInMonth; i++) datesToRender.push(new Date(year, month, i));
+        
+        const remaining = datesToRender.length % 7;
+        if (remaining !== 0) {
+            for (let i = 1; i <= (7 - remaining); i++) datesToRender.push(new Date(year, month + 1, i));
+        }
+    } else if (currentView === 'week') {
+        const dayOfWeek = currentDate.getDay();
+        const startOfWeek = new Date(currentDate);
+        startOfWeek.setDate(currentDate.getDate() - dayOfWeek);
+        
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(endOfWeek.getDate() + 6);
+        document.getElementById("current-date-display").innerText = `${startOfWeek.toLocaleDateString('en-US',{month:'short', day:'numeric'})} - ${endOfWeek.toLocaleDateString('en-US',{month:'short', day:'numeric'})}, ${year}`;
+        
+        for (let i = 0; i < 7; i++) {
+            let d = new Date(startOfWeek);
+            d.setDate(d.getDate() + i);
+            datesToRender.push(d);
+        }
+    } else if (currentView === 'day') {
+        document.getElementById("current-date-display").innerText = currentDate.toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric'});
+        datesToRender.push(new Date(currentDate));
+    }
+
+    datesToRender.forEach(dateObj => {
+        const cell = document.createElement("div");
+        cell.className = "day-cell";
+        
+        if (currentView === 'month' && dateObj.getMonth() !== month) cell.classList.add("other-month");
+
+        const dateStr = getLocalYMD(dateObj);
+        cell.dataset.date = dateStr;
+        cell.onclick = () => openAddModal(dateStr);
+
+        cell.ondragover = (e) => { e.preventDefault(); cell.classList.add('drag-over'); };
+        cell.ondragleave = () => cell.classList.remove('drag-over');
+        cell.ondrop = (e) => handleDrop(e, dateStr, cell);
+
+        const labelContainer = document.createElement("div");
+        labelContainer.style.overflow = "hidden"; // clear float
+        
+        const label = document.createElement("div");
+        label.className = "date-label";
+        if(dateStr === todayStr) label.classList.add("today"); // 今日高亮
+        label.innerText = currentView === 'month' ? dateObj.getDate() : dateObj.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+        
+        labelContainer.appendChild(label);
+        cell.appendChild(labelContainer);
+
+        const dayEvents = eventsData.filter(e => e.start <= dateStr && dateStr <= e.end);
+        dayEvents.forEach(e => {
+            const evDiv = document.createElement("div");
+            evDiv.className = "event";
+            
+            if (e.is_all_day) {
+                evDiv.style.backgroundColor = e.color || '#c7d2fe';
+                // 為了在淺色背景上文字清楚，統一用深色字
+                evDiv.innerText = e.title;
+            } else {
+                evDiv.classList.add("time-specific");
+                evDiv.innerHTML = `
+                    <div class="event-dot" style="background-color: ${e.color || '#4f46e5'}"></div>
+                    <span class="event-time">${e.time || ''}</span>
+                    <span style="overflow: hidden; text-overflow: ellipsis;">${e.title}</span>
+                `;
+            }
+            
+            evDiv.draggable = true;
+            evDiv.dataset.id = e.id;
+            evDiv.ondragstart = (event) => {
+                event.dataTransfer.setData("text/plain", evDiv.dataset.id);
+                setTimeout(() => evDiv.classList.add("dragging"), 0);
+            };
+            evDiv.ondragend = () => evDiv.classList.remove("dragging");
+
+            evDiv.onclick = (event) => {
+                event.stopPropagation();
+                editEvent(e.id);
+            };
+            
+            cell.appendChild(evDiv);
+        });
+        container.appendChild(cell);
+    });
+}
+
+async function handleDrop(e, newDateStr, cell) {
+    e.preventDefault();
+    cell.classList.remove('drag-over');
+    
+    const eventId = e.dataTransfer.getData("text/plain");
+    if (!eventId) return;
+
+    const event = eventsData.find(ev => ev.id == eventId);
+    const startD = new Date(event.start);
+    const endD = new Date(event.end);
+    const durationDays = (endD - startD) / (1000 * 60 * 60 * 24);
+    
+    const newStartD = new Date(newDateStr);
+    const newEndD = new Date(newDateStr);
+    newEndD.setDate(newStartD.getDate() + durationDays);
+
+    const updatedData = {
+        start: getLocalYMD(newStartD),
+        end: getLocalYMD(newEndD)
+    };
+
+    event.start = updatedData.start;
+    event.end = updatedData.end;
+    renderCalendar();
+
+    await fetch(`/api/events/${eventId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedData)
+    });
+}
+
+function toggleTimeInput() {
+    const isAllDay = document.getElementById("editIsAllDay").checked;
+    document.getElementById("timeWrapper").style.display = isAllDay ? "none" : "block";
+}
+
+function openAddModal(dateStr){
+    document.getElementById("modalTitle").innerText = "Add New Event";
+    document.getElementById("eventId").value = ""; 
+    document.getElementById("editTitle").value = "";
+    document.getElementById("editStart").value = dateStr;
+    document.getElementById("editEnd").value = dateStr;
+    document.getElementById("editIsAllDay").checked = false; 
+    document.getElementById("editTime").value = "12:00";     
+    document.getElementById("editDesc").value = "";
+    document.getElementById("editRecurrence").value = ""; 
+    document.getElementById("editColor").value = "#c7d2fe"; // 預設柔和靛藍
+    document.getElementById("deleteBtn").style.display = "none";
+    document.getElementById("eventModal").style.display = "flex";
+    toggleTimeInput();
+}
 
 function editEvent(id){
-    let e = events.find(ev => ev.id === id);
-    document.getElementById("editId").value = id;
+    let e = eventsData.find(ev => ev.id == id);
+    document.getElementById("modalTitle").innerText = "Edit Event";
+    document.getElementById("eventId").value = id;
     document.getElementById("editTitle").value = e.title;
+    
+    // 包含 Until 轉換邏輯
+    let rrule = e.recurrence || "";
+    let freq = "";
+    let displayEnd = e.end; 
+
+    if (rrule) {
+        let parts = rrule.split(';');
+        parts.forEach(p => {
+            if (p.startsWith('FREQ=')) freq = p;
+            if (p.startsWith('UNTIL=')) {
+                let dateStr = p.split('=')[1];
+                displayEnd = `${dateStr.substring(0,4)}-${dateStr.substring(4,6)}-${dateStr.substring(6,8)}`;
+            }
+        });
+    }
+
     document.getElementById("editStart").value = e.start;
-    document.getElementById("editEnd").value = e.end;
-    document.getElementById("editTime").value = e.time;
-    document.getElementById("editDesc").value = e.desc;
-    document.getElementById("editColor").value = e.color;
-    document.getElementById("editModal").style.display = "flex";
+    document.getElementById("editEnd").value = displayEnd; 
+    document.getElementById("editIsAllDay").checked = e.is_all_day;
+    document.getElementById("editTime").value = e.time || "";
+    document.getElementById("editDesc").value = e.desc || "";
+    document.getElementById("editRecurrence").value = freq; 
+    document.getElementById("editColor").value = e.color || "#c7d2fe";
+    
+    document.getElementById("deleteBtn").style.display = "block";
+    document.getElementById("eventModal").style.display = "flex";
+    toggleTimeInput();
 }
 
-function closeModal(){
-    document.getElementById("editModal").style.display = "none";
-}
+function closeModal(){ document.getElementById("eventModal").style.display = "none"; }
 
-function saveEvent(){
-    let data = new URLSearchParams({
-        id: document.getElementById("editId").value,
+async function saveEvent(){
+    let id = document.getElementById("eventId").value;
+    let url = id ? `/api/events/${id}` : "/api/events/";
+    let method = id ? "PUT" : "POST";
+    
+    let startVal = document.getElementById("editStart").value;
+    let endVal = document.getElementById("editEnd").value;
+    let freq = document.getElementById("editRecurrence").value;
+    
+    let recurrenceStr = freq;
+    let finalEventEnd = endVal; 
+
+    // 包含移除 Z 的時區修復邏輯
+    if (freq && startVal !== endVal) {
+        let untilDate = new Date(endVal);
+        let yyyy = untilDate.getFullYear();
+        let mm = String(untilDate.getMonth() + 1).padStart(2, '0');
+        let dd = String(untilDate.getDate()).padStart(2, '0');
+        recurrenceStr += `;UNTIL=${yyyy}${mm}${dd}T235959`; // 無 Z
+        finalEventEnd = startVal; 
+    }
+
+    let data = {
         title: document.getElementById("editTitle").value,
-        start: document.getElementById("editStart").value,
-        end: document.getElementById("editEnd").value,
+        start: startVal,
+        end: finalEventEnd, 
         time: document.getElementById("editTime").value,
         desc: document.getElementById("editDesc").value,
-        color: document.getElementById("editColor").value
+        color: document.getElementById("editColor").value,
+        is_all_day: document.getElementById("editIsAllDay").checked,
+        recurrence: recurrenceStr 
+    };
+
+    await fetch(url, { 
+        method: method, 
+        headers: {"Content-Type": "application/json"}, 
+        body: JSON.stringify(data) 
     });
-    fetch("/edit_event", { method:"POST", headers: {"Content-Type":"application/x-www-form-urlencoded"}, body:data })
-    .then(()=>location.reload());
+    closeModal();
+    loadEvents(); 
 }
 
-function deleteEvent(){
-    let id = document.getElementById("editId").value;
-    fetch("/delete_event", { method:"POST", headers: {"Content-Type":"application/x-www-form-urlencoded"}, body: new URLSearchParams({id:id}) })
-    .then(()=>{ closeModal(); location.reload(); });
+async function deleteEvent(){
+    let id = document.getElementById("eventId").value;
+    if(confirm("Delete this event? (This will delete all repeating instances as well)")){
+        await fetch(`/api/events/${id}`, { method: "DELETE" });
+        closeModal();
+        loadEvents();
+    }
+}
+
+async function importICal(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch('/api/events/import', { method: 'POST', body: formData });
+    if (res.ok) { alert("Import successful!"); loadEvents(); } 
+    else { alert("Import failed."); }
+    event.target.value = "";
 }
 </script>
-
 </body>
 </html>
