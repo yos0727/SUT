@@ -1,25 +1,20 @@
 ## 檔案結構
 ```
-calendar_app/
+SUT/
 ├── app.py                  # 程式進入點 (初始化 Flask、DB、載入設定)
 ├── config.py               # 設定檔 (資料庫 URI、Secret Key 等)
 ├── models.py               # SQLAlchemy 資料庫模型 (User, Event)
 ├── utils.py                # 輔助函式 (日期計算、iCal 轉換等)
+├── extensions.py           # 資料庫與身分驗證功能模組化
 ├── routes/                 # API 與路由模組化 (Blueprints)
-│   ├── __init__.py
 │   ├── auth.py             # 註冊、登入、身分驗證 API
 │   ├── events.py           # 事件 CRUD (RESTful API)
-│   └── views.py            # 負責回傳首頁 index.html 的主要路由
-├── static/                 # 靜態資源 (前端程式碼)
-│   ├── css/
-│   │   └── style.css       # 抽離原本寫在 HTML 裡的 CSS
-│   └── js/
-│       ├── api.js          # 負責使用 fetch 與後端溝通
-│       └── calendar.js     # 處理拖曳、視圖切換、Modal 邏輯與 DOM 渲染
+│   └── views.py            # 負責回傳首頁 calendar.html 的主要路由
 └── templates/
-    ├── base.html           # 基礎模板 (引入共用的 CSS/JS)
-    ├── index.html          # 主日曆頁面 (SPA 進入點，不再使用 Jinja 迴圈渲染天數)
-    └── login.html          # 註冊與登入頁面
+    ├── add_event.html      # 增加事件頁面
+    ├── calendar.html       # 主日曆頁面 (SPA 進入點)
+    ├── register.html       # 註冊頁面
+    └── login.html          # 登入頁面
 ```
 
 
