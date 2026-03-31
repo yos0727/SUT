@@ -51,30 +51,34 @@ def get_events():
 @events_api.route('/', methods=['POST'])
 @login_required
 def create_event():
-    data = request.json or request.form
-    
-    # 確保 is_all_day 能夠正確轉換為布林值
-    is_all_day_val = data.get('is_all_day', False)
-    if isinstance(is_all_day_val, str):
-        is_all_day = is_all_day_val.lower() in ['true', '1']
-    else:
-        is_all_day = bool(is_all_day_val)
-        
-    new_event = Event(
-        title=data.get('title'),
-        start=data.get('start'),
-        end=data.get('end'),
-        time=data.get('time', ''),
-        desc=data.get('desc', ''),
-        color=data.get('color', '#ffcccc'),
-        is_all_day=is_all_day,
-        recurrence=data.get('recurrence', ''), # 確保這裡有接收 recurrence
-        user_id=current_user.id # 綁定目前登入的使用者
-    )
-    db.session.add(new_event)
-    db.session.commit()
-    
-    return jsonify(serialize_event(new_event)), 201
+    try:
+        data = request.json or request.form
+
+        # 確保 is_all_day 能夠正確轉換為布林值
+        is_all_day_val = data.get('is_all_day', False)
+        if isinstance(is_all_day_val, str):
+            is_all_day = is_all_day_val.lower() in ['true', '1']
+        else:
+            is_all_day = bool(is_all_day_val)
+
+        new_event = Event(
+            title=data.get('title'),
+            start=data.get('start'),
+            end=data.get('end'),
+            time=data.get('time', ''),
+            desc=data.get('desc', ''),
+            color=data.get('color', '#ffcccc'),
+            is_all_day=is_all_day,
+            recurrence=data.get('recurrence', ''), # 確保這裡有接收 recurrence
+            user_id=current_user.id # 綁定目前登入的使用者
+        )
+        db.session.add(new_event)
+        db.session.commit()
+
+        return jsonify(serialize_event(new_event)), 201
+
+    except Exception as ex:
+        return jsonify({"error": "Internal Server Error"}), 500
 
 
 @events_api.route('/<int:event_id>', methods=['PUT'])
