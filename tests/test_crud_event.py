@@ -172,3 +172,15 @@ def test_delete_event_success(app, client, mock_db_session, mock_event):
     assert response.status_code == 200
     mock_db_session.delete.assert_called_once_with(mock_event)
     mock_db_session.commit.assert_called_once()
+
+def test_delete_event_not_found(app, client, mock_db_session, mock_event):
+    client, test_user = client
+
+    with app.app_context():
+        with patch("models.Event.query") as mock_query:
+            mock_query.filter_by.return_value.first_or_404.side_effect = NotFound()
+            response = client.delete(f'/api/events/{mock_event.id}')
+
+    assert response.status_code == 404
+    mock_db_session.delete.assert_not_called()
+    mock_db_session.commit.assert_not_called()
