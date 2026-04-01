@@ -161,3 +161,14 @@ def test_update_partial_data(app, client, mock_db_session, mock_event):
     assert response.status_code == 200
     assert result == expect_result
     mock_db_session.commit.assert_called_once()
+
+def test_delete_event_success(app, client, mock_db_session, mock_event):
+    client, test_user = client
+
+    with patch("models.Event.query") as mock_query:
+        mock_query.filter_by.return_value.first_or_404.return_value = mock_event
+        response = client.delete(f'/api/events/{mock_event.id}')
+
+    assert response.status_code == 200
+    mock_db_session.delete.assert_called_once_with(mock_event)
+    mock_db_session.commit.assert_called_once()
