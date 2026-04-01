@@ -5,6 +5,7 @@ from flask_login import LoginManager, login_user, UserMixin
 from extensions import db
 from models import User, Event
 from routes.events_api import events_api
+from werkzeug.exceptions import NotFound
 
 @pytest.fixture
 def app():
@@ -105,3 +106,20 @@ def test_update_event_success(app, client, mock_db_session, mock_event):
     assert mock_event.time == ""
 
     mock_db_session.commit.assert_called_once()
+
+def test_update_event_not_found(app, client, mock_db_session, mock_event):
+    client, test_user = client
+
+    data = {
+        "title": "New Event",
+        "is_all_day": True
+    }
+
+    with app.app_context():
+        with patch("models.Event.query") as mock_query:
+            mock_query.filter_by.return_value.first_or_404.side_effect = NotFound()
+
+            response = client.put(f"/api/events/0", json=data)
+
+    assert response.status_code == 404
+    mock_db_session.commit.assert_not_called()
