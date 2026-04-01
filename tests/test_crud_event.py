@@ -37,7 +37,7 @@ def app():
 
 @pytest.fixture
 def mock_db_session():
-    with patch("extensions.db.session.commit") as mock_db:
+    with patch("extensions.db.session") as mock_db:
         yield mock_db
 
 @pytest.fixture
@@ -68,7 +68,6 @@ def mock_event(app):
 
     return event
 
-
 def test_create_event_fail(client, mock_db_session):
     client, test_user = client
 
@@ -79,7 +78,7 @@ def test_create_event_fail(client, mock_db_session):
         "is_all_day": True
     }
 
-    mock_db_session.side_effect = Exception("DB Error")
+    mock_db_session.commit.side_effect = Exception("DB Error")
 
     response = client.post("/api/events/", json=data)
 
@@ -97,6 +96,7 @@ def test_update_event_success(app, client, mock_db_session, mock_event):
     with app.app_context():
         with patch("models.Event.query") as mock_query:
             mock_query.filter_by.return_value.first_or_404.return_value = mock_event
+
             response = client.put(f"/api/events/{mock_event.id}", json=data)
 
     assert response.status_code == 200
@@ -104,4 +104,4 @@ def test_update_event_success(app, client, mock_db_session, mock_event):
     assert mock_event.is_all_day is True
     assert mock_event.time == ""
 
-    mock_db_session.assert_called_once()
+    mock_db_session.commit.assert_called_once()
