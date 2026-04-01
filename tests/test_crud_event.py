@@ -7,6 +7,9 @@ from models import User, Event
 from routes.events_api import events_api
 from werkzeug.exceptions import NotFound
 
+from utils import serialize_event
+
+
 @pytest.fixture
 def app():
     app = Flask(__name__)
@@ -89,22 +92,28 @@ def test_create_event_fail(client, mock_db_session):
 def test_update_event_success(app, client, mock_db_session, mock_event):
     client, test_user = client
 
-    data = {
-        "title": "New Event",
-        "is_all_day": True
+    expect_data = {
+        'id' : 1,
+        'title' : "New Title",
+        'start' : "2026-04-11",
+        'end' : "2026-04-11",
+        'time' : "",
+        'desc' : "New description",
+        'color' : "#ffffff",
+        'is_all_day' : True,
+        'recurrence' : "FREQ=WEEKLY"
     }
 
     with app.app_context():
         with patch("models.Event.query") as mock_query:
             mock_query.filter_by.return_value.first_or_404.return_value = mock_event
 
-            response = client.put(f"/api/events/{mock_event.id}", json=data)
+            response = client.put(f"/api/events/{mock_event.id}", json=expect_data)
+
+    modified_event = serialize_event(mock_event)
 
     assert response.status_code == 200
-    assert mock_event.title == "New Event"
-    assert mock_event.is_all_day is True
-    assert mock_event.time == ""
-
+    assert modified_event == expect_data
     mock_db_session.commit.assert_called_once()
 
 def test_update_event_not_found(app, client, mock_db_session, mock_event):
