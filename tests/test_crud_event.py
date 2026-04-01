@@ -206,10 +206,6 @@ def test_create_allday_event(client_a, mock_current_user, mock_db):
     assert created_event.is_all_day == True
     assert created_event.user_id == 1
 
-
-# =====================================================================
-# Developer B 的測試案例 (Test Cases 10-15)
-# =====================================================================
 def test_create_event_fail(client_b, mock_db_session):
     client, test_user = client_b
 
