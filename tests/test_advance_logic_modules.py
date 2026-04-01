@@ -6,8 +6,7 @@ from extensions import db
 from models import User, Event
 from routes.events_api import events_api
 from datetime import datetime
-
-# [datetime.datetime(2026, 4, 1, 0, 0), datetime.datetime(2026, 4, 2, 0, 0), datetime.datetime(2026, 4, 3, 0, 0)]
+from utils import serialize_event
 
 @pytest.fixture
 def app():
@@ -62,7 +61,7 @@ def mock_event(app):
         event.desc = "Description"
         event.color = "#ff0000"
         event.is_all_day = False
-        event.recurrence = "FREQ=DAILY;COUNT=3"
+        event.recurrence = ""
 
     return event
 
@@ -90,3 +89,17 @@ def test_rrule_expand_success(app, client, mock_event):
     data = response.get_json()
     assert len(data) == len(mock_instances)
     assert data[0]["start"] == "2026-04-01"
+
+def test_rrule_parse_error(app, client, mock_event):
+    client, test_user = client
+
+    with app.app_context():
+        with patch("dateutil.rrule.rrulestr") as mock_rrule:
+            with patch("models.Event.query") as mock_query:
+                mock_query.filter_by.return_value.all.return_value = [mock_event]
+                mock_rrule.side_effect = Exception()
+                response = client.get("/api/events/")
+
+    result = response.get_json()
+    expect_result = [serialize_event(mock_event)]
+    assert result == expect_result
