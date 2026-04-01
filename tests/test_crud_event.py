@@ -92,7 +92,7 @@ def test_create_event_fail(client, mock_db_session):
 def test_update_event_success(app, client, mock_db_session, mock_event):
     client, test_user = client
 
-    expect_data = {
+    expect_result = {
         'id' : 1,
         'title' : "New Title",
         'start' : "2026-04-11",
@@ -107,13 +107,12 @@ def test_update_event_success(app, client, mock_db_session, mock_event):
     with app.app_context():
         with patch("models.Event.query") as mock_query:
             mock_query.filter_by.return_value.first_or_404.return_value = mock_event
+            response = client.put(f"/api/events/{mock_event.id}", json=expect_result)
 
-            response = client.put(f"/api/events/{mock_event.id}", json=expect_data)
-
-    modified_event = serialize_event(mock_event)
+    result = serialize_event(mock_event)
 
     assert response.status_code == 200
-    assert modified_event == expect_data
+    assert result == expect_result
     mock_db_session.commit.assert_called_once()
 
 def test_update_event_not_found(app, client, mock_db_session, mock_event):
@@ -132,3 +131,33 @@ def test_update_event_not_found(app, client, mock_db_session, mock_event):
 
     assert response.status_code == 404
     mock_db_session.commit.assert_not_called()
+
+def test_update_partial_data(app, client, mock_db_session, mock_event):
+    client, test_user = client
+
+    partial_data = {
+        "title": "New Title",
+    }
+
+    expect_result = {
+        'id' : 1,
+        'title' : "New Title",
+        'start' : "2026-03-31",
+        'end' : "2026-03-31",
+        'time' : "12:00",
+        'desc' : "Old description",
+        'color' : "#ffcccc",
+        'is_all_day' : False,
+        'recurrence' : ""
+    }
+
+    with app.app_context():
+        with patch("models.Event.query") as mock_query:
+            mock_query.filter_by.return_value.first_or_404.return_value = mock_event
+            response = client.put(f"/api/events/{mock_event.id}", json=partial_data)
+
+    result = serialize_event(mock_event)
+
+    assert response.status_code == 200
+    assert result == expect_result
+    mock_db_session.commit.assert_called_once()
