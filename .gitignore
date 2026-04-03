@@ -14,3 +14,7 @@ ENV/
 
 # OS
 .DS_Store
+
+# Database
+*.db
+event.db
