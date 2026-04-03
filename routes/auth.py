@@ -31,7 +31,9 @@ def register():
         if user:
             flash('Username already exists.')
             return redirect(url_for('auth.register'))
-            
+        if len(password) < 4:
+            flash('密碼長度須達4碼')
+            return redirect(url_for('auth.register'))
         new_user = User(
             username=username, 
             password=generate_password_hash(password, method='pbkdf2:sha256')
