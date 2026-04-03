@@ -48,7 +48,7 @@
     .grid-month, .grid-week { grid-template-columns: repeat(7, 1fr); }
     .grid-day { grid-template-columns: 1fr; }
 
-    .day-cell { min-height: 130px; padding: 8px; cursor: pointer; background: white; transition: background-color 0.2s; }
+    .day-cell { min-height: 130px; padding: 8px; cursor: pointer; background: white; transition: background-color 0.2s; min-width: 0; overflow: hidden;}
     .day-cell:hover { background-color: #f9fafb; }
     .day-cell.other-month { background-color: #fafafa; }
     .day-cell.other-month .date-label { color: #d1d5db; }
@@ -306,7 +306,7 @@ function renderCalendar() {
                 evDiv.innerHTML = `
                     <div class="event-dot" style="background-color: ${e.color || '#4f46e5'}"></div>
                     <span class="event-time">${e.time || ''}</span>
-                    <span style="overflow: hidden; text-overflow: ellipsis;">${e.title}</span>
+                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">${e.title}</span>
                 `;
             }
             
