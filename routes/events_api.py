@@ -18,9 +18,8 @@ def get_events():
     
     # 定義展開的時間視窗 (避免無限重複的事件導致記憶體耗盡，這裡設定抓取過去1年到未來2年)
     now = datetime.now()
-    window_start = now - timedelta(days=365)
-    window_end = now + timedelta(days=730)
-
+    window_start = now - timedelta(days=400)
+    window_end = now + timedelta(days=1000)
     for e in events:
         if e.recurrence:
             try:
@@ -28,18 +27,22 @@ def get_events():
                 base_start = datetime.strptime(e.start, "%Y-%m-%d")
                 base_end = datetime.strptime(e.end, "%Y-%m-%d")
                 duration = base_end - base_start
-                
+
+                # 實作看前一年
+                temp_date = e.start.split('-')
+                start_date = f"{int(temp_date[0]) - 1}-{int(temp_date[1])}-{int(temp_date[2])}"
+                start_date = datetime.strptime(start_date, "%Y-%m-%d")
+
                 # 根據 RRULE 展開日期
-                rule = rrulestr(e.recurrence, dtstart=base_start)
+                rule = rrulestr(e.recurrence, dtstart=start_date)
                 instances = rule.between(window_start, window_end, inc=True)
-                
                 for inst in instances:
                     inst_end = inst + duration
                     # 複製原始事件的字典，並覆寫 start 與 end
                     ev_dict = serialize_event(e)
                     ev_dict['start'] = inst.strftime("%Y-%m-%d")
                     ev_dict['end'] = inst_end.strftime("%Y-%m-%d")
-                    result.append(ev_dict)
+                    result.append(ev_dict) 
             except Exception as ex:
                 # 若 RRULE 解析失敗，退回顯示單一事件
                 result.append(serialize_event(e))
