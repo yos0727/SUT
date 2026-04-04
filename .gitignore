@@ -18,3 +18,10 @@ ENV/
 # Database
 *.db
 event.db
+
+# Visual Studio 暫存與快取資料夾
+.vs/
+[Ob]bj/
+[Bb]in/
+*.user
+*.suo

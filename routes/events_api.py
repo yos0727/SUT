@@ -36,7 +36,8 @@ def get_events():
                     rule = rrulestr(e.recurrence, dtstart=start_date)
                 else:
                     # 根據 RRULE 展開日期
-                    rule = rrulestr(e.recurrence, dtstart=base_end)
+                    # dtstart 應為事件的開始時間 (base_start)，使用 base_end 會造成展開時機錯誤或重複
+                    rule = rrulestr(e.recurrence, dtstart=base_start)
                 instances = rule.between(window_start, window_end, inc=True)
                 for inst in instances:
                     inst_end = inst + duration
@@ -134,7 +135,7 @@ def export_ical():
     events = Event.query.filter_by(user_id=current_user.id).all()
     for e in events:
         ie = IcalEvent()
-        ie.add('summary', e.title)
+        ie.add('summary', e.title or "(no title)")
         
         # 處理日期與時間格式
         time_str = e.time if e.time else '00:00'
@@ -143,6 +144,19 @@ def export_ical():
         
         ie.add('dtstart', start_dt)
         ie.add('dtend', end_dt)
+        # 如果有 recurrence，寫入 RRULE
+        if getattr(e, 'recurrence', None):
+            try:
+                ie.add('rrule', e.recurrence)
+            except Exception:
+                # 如果無法直接加入，嘗試以原始字串方式加入
+                ie['RRULE'] = str(e.recurrence)
+        # 將顏色寫入自訂欄位，匯入時會讀出 X-COLOR
+        if getattr(e, 'color', None):
+            try:
+                ie.add('X-COLOR', e.color)
+            except Exception:
+                ie['X-COLOR'] = str(e.color)
         if e.desc:
             ie.add('description', e.desc)
             
@@ -168,26 +182,89 @@ def import_ical():
         cal = Calendar.from_ical(file.read())
         for component in cal.walk():
             if component.name == "VEVENT":
-                summary = str(component.get('summary'))
+                # 避免 summary 或 description 回傳 None 被轉成 'None' 字串，提供合理預設
+                raw_summary = component.get('summary')
+                summary = str(raw_summary) if raw_summary is not None else "(no title)"
+
                 dtstart = component.get('dtstart').dt
                 dtend = component.get('dtend').dt if component.get('dtend') else dtstart
-                description = str(component.get('description', ''))
+
+                raw_desc = component.get('description')
+                description = str(raw_desc) if raw_desc is not None else ""
+
+                # 讀取 RRULE（重複規則）與自訂顏色欄位（若有）
+                raw_rrule = component.get('rrule') or component.get('RRULE')
+                recurrence = ""
+                if raw_rrule:
+                    try:
+                        # raw_rrule 有可能是 dict-like (vRecur)，或其他型態
+                        if isinstance(raw_rrule, dict):
+                            parts = []
+                            for k, v in raw_rrule.items():
+                                # v 可能為 list
+                                if isinstance(v, (list, tuple)):
+                                    vals = []
+                                    for x in v:
+                                        if hasattr(x, 'strftime'):
+                                            vals.append(x.strftime('%Y%m%dT%H%M%S'))
+                                        else:
+                                            vals.append(str(x))
+                                    parts.append(f"{k}={','.join(vals)}")
+                                else:
+                                    parts.append(f"{k}={str(v)}")
+                            recurrence = ';'.join(parts)
+                        else:
+                            recurrence = str(raw_rrule)
+                    except Exception:
+                        recurrence = str(raw_rrule)
+
+                raw_color = None
+                # 優先取得自訂屬性 X-COLOR（export 時我們會寫入 X-COLOR）
+                try:
+                    raw_color = component.get('x-color') or component.get('X-COLOR') or component.get('color')
+                except Exception:
+                    raw_color = None
+                color_val = str(raw_color) if raw_color is not None else None
 
                 # 簡單的格式轉換 (忽略複雜的時區，直接轉字串)
                 start_date = dtstart.strftime("%Y-%m-%d") if hasattr(dtstart, 'strftime') else str(dtstart)
                 end_date = dtend.strftime("%Y-%m-%d") if hasattr(dtend, 'strftime') else str(dtend)
                 time_str = dtstart.strftime("%H:%M") if hasattr(dtstart, 'strftime') and len(str(dtstart)) > 10 else ""
 
-                new_event = Event(
-                    title=summary,
-                    start=start_date,
-                    end=end_date,
-                    time=time_str,
-                    desc=description,
-                    is_all_day=True if not time_str else False,
-                    user_id=current_user.id
-                )
-                db.session.add(new_event)
+                # 檢查是否已存在相同的事件 (由 user_id, title, start, end 判斷)
+                exists = Event.query.filter_by(user_id=current_user.id, title=summary if summary else "(no title)", start=start_date, end=end_date).first()
+                if exists:
+                    # 若存在，嘗試補上缺少的欄位（例如 recurrence, color, desc, time）
+                    updated = False
+                    if not exists.recurrence and recurrence:
+                        exists.recurrence = recurrence
+                        updated = True
+                    if not exists.color and color_val:
+                        exists.color = color_val
+                        updated = True
+                    if not exists.desc and description:
+                        exists.desc = description
+                        updated = True
+                    if (not exists.time or exists.time == '') and time_str:
+                        exists.time = time_str
+                        # 若匯入具有時間，則視為非全天事件
+                        exists.is_all_day = False
+                        updated = True
+                    if updated:
+                        db.session.add(exists)
+                else:
+                    new_event = Event(
+                        title=summary if summary else "(no title)",
+                        start=start_date,
+                        end=end_date,
+                        time=time_str,
+                        desc=description,
+                        color=color_val or '#ffcccc',
+                        is_all_day=True if not time_str else False,
+                        recurrence=recurrence,
+                        user_id=current_user.id
+                    )
+                    db.session.add(new_event)
         
         db.session.commit()
         return jsonify({'message': 'Import successful'}), 200
