@@ -67,7 +67,7 @@ def create_event():
             is_all_day = bool(is_all_day_val)
 
         new_event = Event(
-            title=data.get('title'),
+            title=data.get('title') if data.get('title') else "(no title)",
             start=data.get('start'),
             end=data.get('end'),
             time=data.get('time', ''),
