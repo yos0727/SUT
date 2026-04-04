@@ -114,6 +114,13 @@ def update_event(event_id):
     # 處理重複規則的更新
     if 'recurrence' in data: event.recurrence = data['recurrence']
     db.session.commit()
+
+    if not (event.is_all_day or event.time):
+        print("ERROR!")
+        return jsonify({'error': '事件必須是全天或具有時間'}), 400
+    else:
+        print("nothing happen")
+
     return jsonify(serialize_event(event)), 200
 
 @events_api.route('/<int:event_id>', methods=['DELETE'])

@@ -452,13 +452,20 @@ async function saveEvent(){
         recurrence: recurrenceStr 
     };
 
-    await fetch(url, { 
+    const res = await fetch(url, {
         method: method, 
         headers: {"Content-Type": "application/json"}, 
         body: JSON.stringify(data) 
     });
+
+    if (res.status === 400) {   // 後端驗證失敗
+        const err = await res.json();
+        alert(err.error);
+        return;
+    }
+
     closeModal();
-    loadEvents(); 
+    loadEvents();
 }
 
 async function deleteEvent(){
