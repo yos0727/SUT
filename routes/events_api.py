@@ -28,13 +28,15 @@ def get_events():
                 base_end = datetime.strptime(e.end, "%Y-%m-%d")
                 duration = base_end - base_start
 
-                # 實作看前一年
-                temp_date = e.start.split('-')
-                start_date = f"{int(temp_date[0]) - 1}-{int(temp_date[1])}-{int(temp_date[2])}"
-                start_date = datetime.strptime(start_date, "%Y-%m-%d")
-
-                # 根據 RRULE 展開日期
-                rule = rrulestr(e.recurrence, dtstart=start_date)
+                # 實作看前一年, 只有Yearly時才會往前看
+                if(e.recurrence == "FREQ=YEARLY"):
+                    temp_date = e.start.split('-')
+                    start_date = f"{int(temp_date[0]) - 1}-{int(temp_date[1])}-{int(temp_date[2])}"
+                    start_date = datetime.strptime(start_date, "%Y-%m-%d")
+                    rule = rrulestr(e.recurrence, dtstart=start_date)
+                else:
+                    # 根據 RRULE 展開日期
+                    rule = rrulestr(e.recurrence, dtstart=base_end)
                 instances = rule.between(window_start, window_end, inc=True)
                 for inst in instances:
                     inst_end = inst + duration
