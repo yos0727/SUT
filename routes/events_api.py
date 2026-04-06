@@ -186,7 +186,10 @@ def import_ical():
         return jsonify({'error': 'No selected file'}), 400
 
     if file:
-        cal = Calendar.from_ical(file.read())
+        try:
+            cal = Calendar.from_ical(file.read())
+        except ValueError:
+            return jsonify({'error': 'Invalid iCal format'}), 400
         for component in cal.walk():
             if component.name == "VEVENT":
                 # 避免 summary 或 description 回傳 None 被轉成 'None' 字串，提供合理預設
