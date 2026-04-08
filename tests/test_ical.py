@@ -135,7 +135,9 @@ def test_import_ical_success(client, app):
             'summary': f'Event {i}',
             'dtstart': MagicMock(dt=MagicMock()), # 模擬 .get('dtstart').dt
             'dtend': None,
-            'description': f'Desc {i}'
+            'description': f'Desc {i}',
+            'rrule': None,
+            'x-color': None
         }.get(key, default)
         mock_components.append(comp)
 
@@ -150,9 +152,12 @@ def test_import_ical_success(client, app):
 
             # Patch SQLAlchemy 的 db.session
             with patch('routes.events_api.db.session') as mock_session, \
-                 patch('routes.events_api.current_user') as mock_user:
+                 patch('routes.events_api.current_user') as mock_user,  \
+                 patch('routes.events_api.Event') as mock_event:
                 
                 mock_user.id = 1
+                
+                mock_event.query.filter_by.return_value.first.return_value = None
                 
                 # 模擬檔案上傳並發送 POST 請求
                 data = {
