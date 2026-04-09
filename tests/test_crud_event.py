@@ -180,6 +180,23 @@ def test_create_event_success(client_a, mock_current_user, mock_db):
     assert created_event.is_all_day == False
     assert created_event.user_id == 1
 
+def test_create_event_date_logic_error(client_a, mock_current_user, mock_db):
+    # Testcase26: end date earlier than start date should be rejected
+    new_data_dict = {
+        "id": 200,
+        "title": "Invalid Date",
+        "start": "2026-04-10",
+        "end": "2026-04-05",
+        "is_all_day": True,
+        'user_id' : mock_current_user.id,
+    }
+
+    response = client_a.post("/api/events/", json=new_data_dict)
+    assert response.status_code == 400
+    # Ensure nothing was added/committed
+    mock_db.add.assert_not_called()
+    mock_db.commit.assert_not_called()
+
 def test_create_allday_event(client_a, mock_current_user, mock_db):
     new_data_dict = {
         "id": 102,

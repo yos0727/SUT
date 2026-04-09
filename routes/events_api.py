@@ -78,6 +78,16 @@ def create_event():
             recurrence=data.get('recurrence', ''), # 確保這裡有接收 recurrence
             user_id=current_user.id # 綁定目前登入的使用者
         )
+        # 檢查日期邏輯：結束日不得早於開始日
+        try:
+            start_dt = datetime.strptime(new_event.start, "%Y-%m-%d")
+            end_dt = datetime.strptime(new_event.end, "%Y-%m-%d")
+            if end_dt < start_dt:
+                return jsonify({'error': '結束日期不能早於開始日期'}), 400
+        except Exception:
+            # 若解析日期失敗，視情況允許或回傳錯誤；這裡選擇回傳錯誤以避免錯誤資料寫入
+            return jsonify({'error': '日期格式錯誤'}), 400
+
         db.session.add(new_event)
         db.session.commit()
 
@@ -114,13 +124,22 @@ def update_event(event_id):
         event.time = data['time']
     # 處理重複規則的更新
     if 'recurrence' in data: event.recurrence = data['recurrence']
-    db.session.commit()
 
+    # 檢查是否有時間或為全天事件
     if not (event.is_all_day or event.time):
         print("ERROR!")
         return jsonify({'error': '事件必須是全天或具有時間'}), 400
-    else:
-        print("nothing happen")
+
+    # 檢查日期邏輯：結束日不得早於開始日
+    try:
+        start_dt = datetime.strptime(event.start, "%Y-%m-%d")
+        end_dt = datetime.strptime(event.end, "%Y-%m-%d")
+        if end_dt < start_dt:
+            return jsonify({'error': '結束日期不能早於開始日期'}), 400
+    except Exception:
+        return jsonify({'error': '日期格式錯誤'}), 400
+
+    db.session.commit()
 
     return jsonify(serialize_event(event)), 200
 
